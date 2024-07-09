@@ -326,30 +326,32 @@ def sql2skeleton(sql: str, db_schema):
 
     parsed_sql = Parser(sql)
     new_sql_tokens = []
-    for token in parsed_sql.tokens:
-        # mask table names
-        if token.value in table_names_original:
-            new_sql_tokens.append("_")
-        # mask column names
-        elif token.value in column_names_original \
-                or token.value in table_dot_column_names_original:
-            new_sql_tokens.append("_")
-        # mask string values
-        elif token.value.startswith("'") and token.value.endswith("'"):
-            new_sql_tokens.append("_")
-        # mask positive int number
-        elif token.value.isdigit():
-            new_sql_tokens.append("_")
-        # mask negative int number
-        elif isNegativeInt(token.value):
-            new_sql_tokens.append("_")
-        # mask float number
-        elif isFloat(token.value):
-            new_sql_tokens.append("_")
-        else:
-            new_sql_tokens.append(token.value.strip())
-
-    sql_skeleton = " ".join(new_sql_tokens)
+    try:
+        for token in parsed_sql.tokens:
+            # mask table names
+            if token.value in table_names_original:
+                new_sql_tokens.append("_")
+            # mask column names
+            elif token.value in column_names_original \
+                    or token.value in table_dot_column_names_original:
+                new_sql_tokens.append("_")
+            # mask string values
+            elif token.value.startswith("'") and token.value.endswith("'"):
+                new_sql_tokens.append("_")
+            # mask positive int number
+            elif token.value.isdigit():
+                new_sql_tokens.append("_")
+            # mask negative int number
+            elif isNegativeInt(token.value):
+                new_sql_tokens.append("_")
+            # mask float number
+            elif isFloat(token.value):
+                new_sql_tokens.append("_")
+            else:
+                new_sql_tokens.append(token.value.strip())
+        sql_skeleton = " ".join(new_sql_tokens)
+    except Exception as e:
+        sql_skeleton = " ".join([str(token) for token in parsed_sql.sqlparse_tokens])
 
     # remove JOIN ON keywords
     sql_skeleton = sql_skeleton.replace("on _ = _ and _ = _", "on _ = _")

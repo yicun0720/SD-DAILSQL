@@ -14,6 +14,7 @@ def init_chatgpt(OPENAI_API_KEY, OPENAI_GROUP_ID, model):
     #     openai.organization = OPENAI_GROUP_ID
     openai.api_key = OPENAI_API_KEY
     openai.organization = OPENAI_GROUP_ID
+    openai.api_base = "http://ipads.chat.gpt:3006/v1"
 
 
 def ask_completion(model, batch, temperature):
@@ -39,7 +40,6 @@ def ask_chat(model, messages: list, temperature, n):
         model=model,
         messages=messages,
         temperature=temperature,
-        max_tokens=200,
         n=n
     )
     response_clean = [choice["message"]["content"] for choice in response["choices"]]
@@ -62,7 +62,7 @@ def ask_llm(model: str, batch: list, temperature: float, n:int):
             elif model in LLM.TASK_CHAT:
                 # batch size must be 1
                 assert len(batch) == 1, "batch must be 1 in this mode"
-                messages = [{"role": "user", "content": batch[0]}]
+                messages = [{"role": "user", "content": "/* List the answer without any explanation. */\n" + batch[0]}]
                 response = ask_chat(model, messages, temperature, n)
                 response['response'] = [response['response']]
             break
