@@ -13,6 +13,17 @@ from utils.post_process import process_duplication, get_sqls
 
 QUESTION_FILE = "questions.json"
 
+postfix = "\n### Please provide %s candidate SQL queries for the previous question that you believe are the correct answers. " \
+          "These candidate SQL queries are encouraged to differ greatly from each other in their syntax structures and used keywords, " \
+          "as long as you believe they are correct corresponding to the previous question. " \
+          "List the %s candidate SQL queries one by one in a JSON format with a key \"answers\"." \
+          "The JSON format should be like: " \
+          "{\"answers\": [\"SELECT...\", \"SELECT...\", ..., \"SELECT...\"] } \n"
+
+
+def prompt_postfix(count: int):
+    return postfix % (count, count)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -24,7 +35,8 @@ if __name__ == '__main__':
                                                       LLM.GPT_35_TURBO_0613,
                                                       # LLM.TONG_YI_QIAN_WEN,
                                                       LLM.GPT_35_TURBO_16K,
-                                                      LLM.GPT_4],
+                                                      LLM.GPT_4,
+                                                      LLM.GPT_4_TURBO],
                         default=LLM.GPT_4_TURBO)
     parser.add_argument("--start_index", type=int, default=0)
     parser.add_argument("--end_index", type=int, default=1000000)
@@ -33,6 +45,8 @@ if __name__ == '__main__':
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--n", type=int, default=5, help="Size of self-consistent set")
     parser.add_argument("--db_dir", type=str, default="dataset/spider/database")
+    parser.add_argument("--multi_preds", type=bool, default=False)
+    parser.add_argument("--count", type=int, default=10)
     args = parser.parse_args()
 
     # check args
@@ -59,13 +73,63 @@ if __name__ == '__main__':
     question_loader = DataLoader(questions, batch_size=args.batch_size, shuffle=False, drop_last=False)
 
     token_cnt = 0
-    with open(out_file, mode) as f:
+    if not args.multi_preds:
+        with open(out_file, mode) as f:
+            for i, batch in enumerate(tqdm(question_loader)):
+                if i < args.start_index:
+                    continue
+                if i >= args.end_index:
+                    break
+                try:
+                    res = ask_llm(args.model, batch, args.temperature, args.n)
+                except openai.error.InvalidRequestError:
+                    print(f"The {i}-th question has too much tokens! Return \"SELECT\" instead")
+                    res = ""
+
+                # parse result
+                token_cnt += res["total_tokens"]
+                if args.n == 1:
+                    for sql in res["response"]:
+                        # remove \n and extra spaces
+                        sql = " ".join(sql.replace("\n", " ").split())
+                        sql = process_duplication(sql)
+                        # python version should >= 3.8
+                        if sql.startswith("SELECT"):
+                            f.write(sql + "\n")
+                        elif sql.startswith(" "):
+                            f.write("SELECT" + sql + "\n")
+                        else:
+                            f.write("SELECT " + sql + "\n")
+                else:
+                    results = []
+                    cur_db_ids = db_ids[i * args.batch_size: i * args.batch_size + len(batch)]
+                    for sqls, db_id in zip(res["response"], cur_db_ids):
+                        processed_sqls = []
+                        for sql in sqls:
+                            sql = " ".join(sql.replace("\n", " ").split())
+                            sql = process_duplication(sql)
+                            if sql.startswith("SELECT"):
+                                pass
+                            elif sql.startswith(" "):
+                                sql = "SELECT" + sql
+                            else:
+                                sql = "SELECT " + sql
+                            processed_sqls.append(sql)
+                        result = {
+                            'db_id': db_id,
+                            'p_sqls': processed_sqls
+                        }
+                        final_sqls = get_sqls([result], args.n, args.db_dir)
+
+                        for sql in final_sqls:
+                            f.write(sql + "\n")
+    else:
+        records = []
         for i, batch in enumerate(tqdm(question_loader)):
-            if i < args.start_index:
+            if (args.start_index >= 0 and i < args.start_index) or (args.end_index >= 0 and i > args.end_index):
                 continue
-            if i >= args.end_index:
-                break
             try:
+                batch[0] = batch[0][:-7] + prompt_postfix(args.count)
                 res = ask_llm(args.model, batch, args.temperature, args.n)
             except openai.error.InvalidRequestError:
                 print(f"The {i}-th question has too much tokens! Return \"SELECT\" instead")
@@ -73,39 +137,35 @@ if __name__ == '__main__':
 
             # parse result
             token_cnt += res["total_tokens"]
-            if args.n == 1:
-                for sql in res["response"]:
+            cur_db_ids = db_ids[i * args.batch_size: i * args.batch_size + len(batch)]
+            if args.n == 1 and args.count > 1:
+                tries = 0
+                while tries < 10:
+                    try:
+                        tries += 1
+                        sql_json_ans = res["response"][0][
+                                       res["response"][0].index('{'): res["response"][0].rindex('}') + 1]
+                        sql_json_ans = json.loads(sql_json_ans)
+                        sqls = sql_json_ans['answers']
+                        break
+                    except Exception as e:
+                        pass
+                if tries == 5:
+                    print("error")
+                    exit(0)
+                for j in range(len(sqls)):
+                    if '```sql' in sqls[j]:
+                        sqls[j] = sqls[j].replace('```sql', '').replace('```', '')
                     # remove \n and extra spaces
-                    sql = " ".join(sql.replace("\n", " ").split())
-                    sql = process_duplication(sql)
+                    sqls[j] = " ".join(sqls[j].replace("\n", " ").split())
+                    sqls[j] = process_duplication(sqls[j])
                     # python version should >= 3.8
-                    if sql.startswith("SELECT"):
-                        f.write(sql + "\n")
-                    elif sql.startswith(" "):
-                        f.write("SELECT" + sql + "\n")
-                    else:
-                        f.write("SELECT " + sql + "\n")
-            else:
-                results = []
-                cur_db_ids = db_ids[i * args.batch_size: i * args.batch_size + len(batch)]
-                for sqls, db_id in zip(res["response"], cur_db_ids):
-                    processed_sqls = []
-                    for sql in sqls:
-                        sql = " ".join(sql.replace("\n", " ").split())
-                        sql = process_duplication(sql)
-                        if sql.startswith("SELECT"):
-                            pass
-                        elif sql.startswith(" "):
-                            sql = "SELECT" + sql
-                        else:
-                            sql = "SELECT " + sql
-                        processed_sqls.append(sql)
-                    result = {
-                        'db_id': db_id,
-                        'p_sqls': processed_sqls
-                    }
-                    final_sqls = get_sqls([result], args.n, args.db_dir)
-
-                    for sql in final_sqls:
-                        f.write(sql + "\n")
-
+                    if sqls[j].startswith(" "):
+                        sqls[j] = "SELECT" + sqls[j]
+                record = {'id': i, 'db_id': cur_db_ids[0], 'infer_predictions': [sqls],
+                          # there may be multiple rounds later, stored in a list
+                          # 'labels': eq_labels
+                          }
+                records.append(record)
+                with open(out_file, 'w') as f:
+                    json.dump(records, f, indent=2)

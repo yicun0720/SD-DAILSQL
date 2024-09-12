@@ -4,6 +4,7 @@ question=""
 n=5
 db_dir="dataset/spider/database_opt"
 temperature=1.0
+multi_preds=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -31,6 +32,10 @@ while [[ $# -gt 0 ]]; do
     temperature="${2}"
     shift 2
     ;;
+  "-multi_preds")
+    multi_preds="${2}"
+    shift 2
+    ;;
   *)
     positional_args+=("${1}")
     shift
@@ -44,4 +49,5 @@ python ask_llm.py \
 --question $question \
 --n $n \
 --db_dir $db_dir \
---temperature $temperature
+--temperature $temperature \
+--multi_preds $multi_preds
