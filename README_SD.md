@@ -4,6 +4,9 @@ This README is used to guide the evaluation of SQLDriller.
 ## Prerequisites
 Follow the same instructions in the `Environment Setup` section of README.md to create a running environment.
 
+## Data Preparation
+You need to download the [Spider](https://drive.google.com/file/d/1iGDpMQznriVNr_Oj4i1J4OJ2EEWNH1oO/view?usp=sharing) to the folder ./dataset/spider
+
 ## Reproduce on Spider
 ### Inference with the original train dataset
 
