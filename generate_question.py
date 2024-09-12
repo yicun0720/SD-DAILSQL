@@ -20,7 +20,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_type", type=str, choices=["spider", "realistic", "bird"], default="spider")
     parser.add_argument("--split", type=str, choices=["train", "test"], default="test",  required=True)
-    parser.add_argument("--k_shot", type=int, default=0, help="Number of examples")
+    parser.add_argument("--k_shot", type=int, default=5, help="Number of examples")
+    # step1: original train, original dev
+    # step2: original train, refined dev
+    # step3: refined train, refined dev
+    parser.add_argument("--evaluation_step", type=str, choices=["step1", "step2", "step3"], default="step3")
     parser.add_argument("--prompt_repr", type=str, choices=[REPR_TYPE.CODE_REPRESENTATION,
                                                             REPR_TYPE.TEXT_REPRESENTATION,
                                                             REPR_TYPE.OPENAI_DEMOSTRATION,
@@ -58,14 +62,14 @@ if __name__ == '__main__':
                                                               ], default=None)
     parser.add_argument("--max_seq_len", type=int, default=2048, help="The maximal length that LLM takes")
     parser.add_argument("--max_ans_len", type=int, default=200, help="The maximal length that an answer takes")
-    parser.add_argument("--tokenizer", type=str, default="gpt-3.5-turbo")
+    parser.add_argument("--tokenizer", type=str, default="gpt-4-turbo")
     parser.add_argument("--scope_factor", type=int, default=100, help="Times of the searching scope")
     parser.add_argument("--pre_test_result", type=str, default=None)
 
     args = parser.parse_args()
 
     # load test dataset here
-    data = load_data(args.data_type, PATH_DATA, args.pre_test_result)
+    data = load_data(args.data_type, PATH_DATA, args.evaluation_step, args.pre_test_result)
 
     # Read all tables into a dict
     databases = data.get_databases()
@@ -122,9 +126,8 @@ if __name__ == '__main__':
         },
         "questions": questions
     }
-    
+
     path_generate = f"dataset/process/{args.data_type.upper()}-{args.split.upper()}_{prompt.name}_CTX-{args.max_ans_len}_ANS-{args.max_seq_len}"
-        
+
     os.makedirs(path_generate, exist_ok=True)
     json.dump(task, open(os.path.join(path_generate, "questions.json"), "w"), indent=4)
-    

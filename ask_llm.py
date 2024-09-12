@@ -25,7 +25,7 @@ if __name__ == '__main__':
                                                       # LLM.TONG_YI_QIAN_WEN,
                                                       LLM.GPT_35_TURBO_16K,
                                                       LLM.GPT_4],
-                        default=LLM.GPT_35_TURBO)
+                        default=LLM.GPT_4_TURBO)
     parser.add_argument("--start_index", type=int, default=0)
     parser.add_argument("--end_index", type=int, default=1000000)
     parser.add_argument("--temperature", type=float, default=0)
@@ -47,10 +47,7 @@ if __name__ == '__main__':
     # init openai api
     init_chatgpt(args.openai_api_key, args.openai_group_id, args.model)
 
-    if args.start_index == 0:
-        mode = "w"
-    else:
-        mode = "a"
+    mode = "a+"
 
     if args.mini_index_path:
         mini_index = json.load(open(args.mini_index_path, 'r'))

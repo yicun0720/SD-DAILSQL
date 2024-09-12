@@ -22,7 +22,7 @@ class BasicDataset(object):
             self.mini_test_index_json = None
 
         self.pre_test_result = pre_test_result
-            
+
         # lazy load for tables
         self.databases = None
 
@@ -54,7 +54,7 @@ class BasicDataset(object):
     def get_path_sql(self, db_id):
         path_sql = os.path.join(self.path_db, db_id, "schema.sql")
         return path_sql
-        
+
     def get_table_json(self):
         return json.load(open(self.table_json, "r"))
 
@@ -82,7 +82,7 @@ class BasicDataset(object):
     def get_pre_skeleton(self, queries=None, schemas=None, mini_set=False):
         if queries:
             skeletons = []
-            for query,schema in zip(queries, schemas):
+            for query, schema in zip(queries, schemas):
                 skeletons.append(sql2skeleton(query, schema))
             if mini_set and self.mini_test_index_json:
                 mini_index = self.get_mini_index()
@@ -209,13 +209,22 @@ class BasicDataset(object):
 
 
 class SpiderDataset(BasicDataset):
-    name = "spider"
-    test_json = "dev.json"
-    test_gold = "dev_gold.sql"
-    train_json = "train_spider_and_others.json"
-    train_gold = "train_gold.sql"
-    table_json = "tables.json"
-    mini_test_index_json = "mini_dev_index.json"
+    def __init__(self, path_data, evaluation_step, pre_test_result=None):
+        self.name = "spider"
+        self.mini_test_index_json = "mini_dev_index.json"
+        if evaluation_step == "step2":
+            self.test_json = "dev_gold_fixed.json"
+            self.test_gold = "dev_gold_fixed.sql"
+            self.train_json = "train_spider.json"
+            self.train_gold = "train_gold.sql"
+            self.table_json = "tables_schema_fixed.json"
+        elif evaluation_step == "step3":
+            self.test_json = "dev_gold_fixed.json"
+            self.test_gold = "dev_gold_fixed.sql"
+            self.train_json = "train_gold_fixed.json"
+            self.train_gold = "train_gold_fixed.sql"
+            self.table_json = "tables_schema_fixed.json"
+        super().__init__(path_data, pre_test_result)
 
 
 class RealisticDataset(BasicDataset):
@@ -238,9 +247,9 @@ class BirdDataset(BasicDataset):
     mini_test_index_json = None
 
 
-def load_data(data_type, path_data, pre_test_result=None):
+def load_data(data_type, path_data, evaluation_step, pre_test_result=None):
     if data_type.lower() == "spider":
-        return SpiderDataset(path_data, pre_test_result)
+        return SpiderDataset(path_data, evaluation_step, pre_test_result)
     elif data_type.lower() == "realistic":
         return RealisticDataset(path_data, pre_test_result)
     elif data_type.lower() == "bird":

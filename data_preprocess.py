@@ -107,27 +107,37 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", type=str, default="./dataset/spider")
     parser.add_argument("--data_type", type=str, choices=["spider", "bird"], default="spider")
+    parser.add_argument("--evaluation_step", type=str, choices=["step1", "step2", "step3"], default="step2")
     args = parser.parse_args()
 
     data_type = args.data_type
     if data_type == "spider":
-        # merge two training split of Spider
+        # # merge two training split of Spider
         spider_dir = args.data_dir
-        split1 = "train_spider.json"
-        split2 = "train_others.json"
-        total_train = []
-        for item in json.load(open(os.path.join(spider_dir, split1))):
-            total_train.append(item)
-        for item in json.load(open(os.path.join(spider_dir, split2))):
-            total_train.append(item)
-        with open(os.path.join(spider_dir, 'train_spider_and_others.json'), 'w') as f:
-            json.dump(total_train, f)
 
         # schema-linking between questions and databases for Spider
-        spider_dev = "dev.json"
-        spider_train = 'train_spider_and_others.json'
-        spider_table = 'tables.json'
-        spider_db = 'database'
+        spider_dev = ""
+        spider_train = ""
+        spider_table = ""
+        spider_db = ""
+        if args.evaluation_step == "step1":
+            # original nlq
+            spider_db = 'database'
+            spider_table = 'tables.json'
+            spider_dev = "dev.json"
+            spider_train = 'train_spider.json'
+        elif args.evaluation_step == "step2":
+            # fixed dev set
+            spider_db = 'database_opt'
+            spider_table = 'tables_schema_fixed.json'
+            spider_dev = "dev_gold_fixed.json"
+            spider_train = 'train_spider.json'
+        elif args.evaluation_step == "step3":
+            # fixed train set
+            spider_db = 'database_opt'
+            spider_table = 'tables_schema_fixed.json'
+            spider_dev = "dev_gold_fixed.json"
+            spider_train = 'train_gold_fixed.json'
         schema_linking_producer(spider_dev, spider_train, spider_table, spider_db, spider_dir)
     elif data_type == "bird":
         # schema-linking for bird with evidence

@@ -14,7 +14,6 @@ def init_chatgpt(OPENAI_API_KEY, OPENAI_GROUP_ID, model):
     #     openai.organization = OPENAI_GROUP_ID
     openai.api_key = OPENAI_API_KEY
     openai.organization = OPENAI_GROUP_ID
-    openai.api_base = "http://ipads.chat.gpt:3006/v1"
 
 
 def ask_completion(model, batch, temperature):

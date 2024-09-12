@@ -1,4 +1,4 @@
-                                                                                                                                                                                                SELECT count(*) FROM singer
+SELECT count(*) FROM singer
 SELECT count(*) FROM singer
 SELECT Name , Country , Age FROM singer ORDER BY Age DESC
 SELECT Name , Country , Age FROM singer ORDER BY Age DESC
